@@ -4,8 +4,6 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.provider.Settings
-import android.view.Gravity
-import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -46,8 +44,6 @@ object ConnectionUi {
         root.addView(textButton(activity, "Shizuku permission") {
             checkMethod(activity, manager, ConnectionMethod.SHIZUKU, onChanged)
         })
-        root.addView(textButton(activity, "Close") { /* outer dialog closes through its own button */ })
-
         AlertDialog.Builder(activity)
             .setView(root)
             .setTitle("Control setup")
@@ -175,8 +171,6 @@ object ConnectionUi {
             }.start()
         })
 
-        root.addView(textButton(activity, "Close") { /* dialog button below handles dismissal */ })
-
         wirelessDialog = AlertDialog.Builder(activity)
             .setView(root)
             .setTitle("Wireless debugging")
@@ -192,8 +186,11 @@ object ConnectionUi {
     ) {
         manager.setMethod(method)
         Thread {
-            val result = manager.bridge().use { it.check() }
+            val result = manager.checkSelected()
             activity.runOnUiThread {
+                if (result.ok && method == ConnectionMethod.ROOT) {
+                    manager.markRootVerified()
+                }
                 onChanged()
                 if (result.ok) activity.toast("Connected through " + method.name.lowercase(Locale.ROOT).replace('_', ' '))
                 else activity.showError("Control check failed", result.message)
