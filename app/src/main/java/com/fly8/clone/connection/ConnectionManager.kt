@@ -42,6 +42,8 @@ class ConnectionManager(context: Context) {
         }
     }
 
+    fun markRootVerified() { store.contextPrefs().edit().putBoolean("root_verified", true).apply() }
+
     fun checkSelected(): BridgeResult {
         return when (currentMethod()) {
             ConnectionMethod.WIRELESS_DEBUGGING ->
