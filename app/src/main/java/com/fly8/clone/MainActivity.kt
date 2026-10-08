@@ -299,7 +299,7 @@ class MainActivity : Activity() {
         body.addView(divider())
         body.addView(sectionLabel("Processing"))
         body.addView(smallText("Host CPU is reported by Android only when available; FLY8 does not poll it continuously."))
-        body.addView(smallText("Preview updates are paused unless a session is explicitly opened."))
+        body.addView(smallText("Preview capture is disabled by default. Opening an Android session is required for a real app display; FLY8 does not maintain a continuous screenshot stream."))
         body.addView(divider())
         body.addView(sectionLabel("Storage"))
         body.addView(progressRow(formatBytes(usedStorage) + " / " + formatBytes(totalStorage) + " used", usedStorage.toDouble() / totalStorage.coerceAtLeast(1L)))
@@ -363,6 +363,7 @@ class MainActivity : Activity() {
         headerActions.addView(actionButton("▦") { toast("Grid view is the default compact layout.") })
         headerActions.addView(actionButton("▶") { launchAllSequential() })
         headerActions.addView(actionButton("↻") { restartRunningSessions() })
+        headerActions.addView(actionButton("■") { stopAllSessions() })
         headerActions.addView(actionButton("⚙") {
             page = Page.RECOVERY
             renderCurrentPage()
@@ -443,7 +444,7 @@ class MainActivity : Activity() {
             }
             addView(TextView(this@MainActivity).apply {
                 text = when (clone.lastKnownState) {
-                    SessionState.RUNNING -> "LIVE VIEW"
+                    SessionState.RUNNING -> "RUNNING • OPEN APP TO VIEW"
                     SessionState.UNAVAILABLE -> "UNAVAILABLE"
                     SessionState.STOPPED -> "STOPPED"
                     SessionState.UNKNOWN -> "READY"
@@ -1138,6 +1139,38 @@ class MainActivity : Activity() {
                         renderCurrentPage()
                     }
                     5 -> removeClone(clone)
+                }
+            }
+            .show()
+    }
+
+    private fun stopAllSessions() {
+        val snapshot = clones.filter { it.lastKnownState == SessionState.RUNNING }
+        if (snapshot.isEmpty()) {
+            toast("No sessions are marked running.")
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Stop running sessions?")
+            .setMessage("FLY8 will stop " + snapshot.size + " session(s). Saved app data remains intact.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Stop") { _, _ ->
+                executor.execute {
+                    snapshot.forEachIndexed { index, clone ->
+                        val result = backend.stop(clone)
+                        runOnUiThread {
+                            if (result.isSuccess) {
+                                updateClone(clone.userId) {
+                                    it.copy(lastKnownState = SessionState.STOPPED, lastActionAt = System.currentTimeMillis())
+                                }
+                                activityLog.add("Stopped in batch: " + clone.label)
+                            } else {
+                                activityLog.add("Batch stop failed: " + clone.label)
+                            }
+                            renderCurrentPage()
+                        }
+                        if (index < snapshot.lastIndex) Thread.sleep(1000)
+                    }
                 }
             }
             .show()
