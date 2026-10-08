@@ -15,6 +15,8 @@ object WirelessPairing {
     }
 
     fun test(context: Context, host: String, port: Int): Result<Unit> {
+        // Do not close the singleton ADB manager here. The reference keeps a paired
+        // control channel reusable until the connection is explicitly lost.
         val bridge = WirelessAdbBridge(context)
         val result = bridge.connect(host, port)
         return if (result.ok) {
