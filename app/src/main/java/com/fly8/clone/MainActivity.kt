@@ -732,6 +732,12 @@ class MainActivity : Activity() {
         addRowCard("Open-source notices", "Third-party libraries used by FLY8.") {
             showTextDialog("Open-source notices", "Shizuku API/provider 13.1.5 • MIT License\n\nAndroidX • applicable AndroidX licenses\n\nMaterial Components • applicable Material Components license\n\nThese notices describe dependencies actually used by the independent FLY8 build.")
         }
+        addRowCard("Terms", "Use FLY8 only on devices and apps you are authorized to manage.") {
+            showTextDialog("Terms", "FLY8 is an independent session-management tool. You are responsible for complying with Android, app, game, network, and service terms that apply to the device and software you manage. FLY8 does not grant any license or access entitlement.")
+        }
+        addRowCard("App license", "FLY8 application license and third-party notices.") {
+            showTextDialog("App license", "The FLY8 application source is distributed under the repository license. Third-party components keep their own licenses and notices. See Open-source notices for the dependencies used by the current build.")
+        }
         addRowCard("Privacy", "Local-first storage and no account requirement.") {
             showTextDialog("Privacy", "FLY8 stores session metadata locally on the device. It does not require an account or remote activation service. The app picker reads installed application metadata so you can choose a package to clone.")
         }
