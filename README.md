@@ -20,7 +20,7 @@ The current visual system is built around a near-black and deep-blue palette wit
 
 ## Backend
 
-The first backend uses Android's native clone-profile mechanism through Shizuku. It deliberately does not embed a full Android virtualization engine.
+The first session backend uses Android's native clone-profile/secondary-user primitives. Control access is selectable: Wireless debugging (ADB), Shizuku, or Root. FLY8 does not embed a full Android virtualization engine.
 
 Android/OEM behavior varies. Native clone support does not imply unlimited simultaneous instances, and some devices expose only one additional clone profile.
 
@@ -40,9 +40,11 @@ Network-change and public-IP recovery preferences are stored in the same per-ses
 
 The app avoids continuous screenshot capture, large bitmap caches and constant UI rebuilding. Resource statistics are sampled when screens are rendered or refreshed rather than polled continuously.
 
-## Shizuku
+## Control connections
 
-Install and start Shizuku separately, then grant FLY8 access when requested. FLY8 does not bundle the Shizuku manager and does not expose an arbitrary shell console to the user.
+FLY8 supports three independent control methods. Wireless debugging uses Android's modern ADB-over-Wi-Fi pairing flow; the app can manually pair and test the connection and can discover `_adb-tls-pairing._tcp.` and `_adb-tls-connect._tcp.` endpoints with Android mDNS. Shizuku is an optional local privileged bridge. Root is an optional direct `su` bridge on rooted devices. FLY8 does not expose an arbitrary shell console.
+
+Wireless debugging pairing stores control configuration locally. The connection port can change after a reboot, so rediscovery or manual entry may be needed.
 
 ## Build
 
