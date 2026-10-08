@@ -1,0 +1,13 @@
+<resources>
+    <style name="Theme.FLY8" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">@color/fly8_bg</item>
+        <item name="android:navigationBarColor">@color/fly8_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/fly8_bg</item>
+        <item name="colorPrimary">@color/fly8_mint</item>
+        <item name="colorOnPrimary">@color/fly8_bg</item>
+        <item name="colorSurface">@color/fly8_panel</item>
+        <item name="colorOnSurface">@color/fly8_text</item>
+    </style>
+</resources>

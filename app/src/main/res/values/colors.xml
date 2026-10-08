@@ -1,0 +1,8 @@
+<resources>
+    <color name="fly8_bg">#0B0D0C</color>
+    <color name="fly8_panel">#151915</color>
+    <color name="fly8_panel2">#1C211C</color>
+    <color name="fly8_mint">#8BE0B5</color>
+    <color name="fly8_text">#F1F5F1</color>
+    <color name="fly8_muted">#A9B2AB</color>
+</resources>
