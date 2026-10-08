@@ -3,7 +3,8 @@ package com.fly8.clone.connection
 import android.content.Context
 
 class ConnectionManager(context: Context) {
-    private val store = ConnectionStore(context.applicationContext)
+    private val appContext = context.applicationContext
+    private val store = ConnectionStore(appContext)
 
     fun currentMethod(): ConnectionMethod = store.method()
 
@@ -21,14 +22,11 @@ class ConnectionManager(context: Context) {
         return when (currentMethod()) {
             ConnectionMethod.SHIZUKU -> ShizukuBridge()
             ConnectionMethod.ROOT -> RootBridge()
-            ConnectionMethod.WIRELESS_DEBUGGING -> {
-                val state = wireless()
-                WirelessAdbBridge(
-                    WirelessAdbConfig(state.host, state.connectionPort)
-                )
-            }
+            ConnectionMethod.WIRELESS_DEBUGGING -> WirelessAdbBridge(appContext)
         }
     }
+
+    fun wirelessBridge(): WirelessAdbBridge = WirelessAdbBridge(appContext)
 
     fun statusText(): String {
         return when (currentMethod()) {
@@ -36,8 +34,14 @@ class ConnectionManager(context: Context) {
             ConnectionMethod.ROOT -> "Root"
             ConnectionMethod.WIRELESS_DEBUGGING -> {
                 val w = wireless()
-                if (w.host.isBlank() || w.connectionPort == 0) "Wireless debugging • setup required"
-                else "Wireless debugging • " + w.host + ":" + w.connectionPort
+                when {
+                    w.host.isNotBlank() && w.connectionPort != 0 ->
+                        "Wireless debugging • " + w.host + ":" + w.connectionPort
+                    w.paired ->
+                        "Wireless debugging • paired • auto discovery"
+                    else ->
+                        "Wireless debugging • setup required"
+                }
             }
         }
     }
