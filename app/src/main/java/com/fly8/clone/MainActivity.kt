@@ -77,7 +77,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private enum class Page { DASHBOARD, SESSIONS, ABOUT, APPS, RECOVERY, SETTINGS }
+    private enum class Page { DASHBOARD, SESSIONS, ABOUT, APPS, RECOVERY, LOGS, SETTINGS }
 
     private var page = Page.DASHBOARD
 
@@ -211,6 +211,7 @@ class MainActivity : Activity() {
             Page.ABOUT -> renderAbout()
             Page.APPS -> renderApps()
             Page.RECOVERY -> renderRecovery()
+            Page.LOGS -> renderLogs()
             Page.SETTINGS -> renderSettings()
         }
         refreshStatus()
@@ -233,6 +234,7 @@ class MainActivity : Activity() {
             page = Page.APPS
             renderCurrentPage()
         })
+        headerActions.addView(actionButton("Logs") { page = Page.LOGS; renderCurrentPage() })
         headerActions.addView(actionButton("⋮") { showQuickMenu() })
 
         addSection("Overview", "Your device, backend and configured sessions.")
@@ -312,6 +314,10 @@ class MainActivity : Activity() {
         val card = card()
         val body = vertical()
         body.addView(textPair("FLY8 Auto Recovery", if (enabled == 0) "Paused • add a session to configure recovery." else enabled.toString() + " session(s) have recovery enabled.", 18f))
+        val fallback = settings.getString("recovery_fallback_target", "") ?: ""
+        body.addView(actionButton(if (fallback.isBlank()) "Shared fallback target: not set" else "Shared fallback target: " + fallback) {
+            editSharedFallbackTarget()
+        })
         body.addView(smallText("Scheduled recovery uses Android alarms and performs work only when an alarm fires. No permanent polling loop is required."))
         val actions = horizontal()
         actions.addView(actionButton("Manage recovery") {
@@ -406,7 +412,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         })
         info.addView(TextView(this).apply {
-            text = "#" + clone.userId + " • " + clone.packageName + " • " + if (clone.profileKind == ProfileKind.CLONE_PROFILE) "clone profile" else "secondary user"
+            text = "#" + (clones.indexOf(clone) + 1) + " • user " + clone.userId + " • " + if (clone.profileKind == ProfileKind.CLONE_PROFILE) "clone profile" else "secondary user" + "\n" + clone.packageName
             textSize = 9f
             setTextColor(muted)
             maxLines = 2
@@ -487,7 +493,7 @@ class MainActivity : Activity() {
             .distinctBy { it.packageName }
             .sortedBy { it.label.lowercase(Locale.ROOT) }
 
-        addInfoCard("Installed apps", apps.size.toString() + " launchable apps detected. FLY8 stores only the selected package and session metadata.")
+        addInfoCard("Installed apps", apps.size.toString() + " launchable apps detected. FLY8 stores only the selected package and session metadata. Existing sessions for a package are shown as configured and are not duplicated.")
         apps.take(200).forEach { app ->
             val row = card()
             val line = horizontal().apply { gravity = Gravity.CENTER_VERTICAL }
@@ -580,6 +586,57 @@ class MainActivity : Activity() {
             body.addView(actionButton("Test restart now") { launchClone(clone, true) })
             card.addView(body)
         }
+    }
+
+    private fun renderLogs() {
+        configureHeader("Logs", "Local session and recovery activity", true)
+        headerActions.addView(actionButton("Clear") {
+            AlertDialog.Builder(this)
+                .setTitle("Clear local logs?")
+                .setMessage("This removes only FLY8's local activity history.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Clear") { _, _ ->
+                    activityLog.clear()
+                    renderCurrentPage()
+                }
+                .show()
+        })
+        val logs = activityLog.load()
+        addInfoCard("Activity history", "Latest " + logs.size + " retained event(s). FLY8 keeps the log bounded to avoid unbounded disk growth.")
+        if (logs.isEmpty()) {
+            addInfoCard("No activity yet", "Session starts, stops, recovery events and failures will appear here.")
+        } else {
+            logs.forEach { row ->
+                val parts = row.split("|", limit = 2)
+                val time = parts.firstOrNull()?.toLongOrNull()?.let {
+                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))
+                } ?: "Unknown time"
+                addInfoCard(time, parts.getOrElse(1) { row })
+            }
+        }
+    }
+
+    private fun editSharedFallbackTarget() {
+        val input = EditText(this).apply {
+            setText(settings.getString("recovery_fallback_target", ""))
+            hint = "Roblox game link or place ID"
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Shared recovery target")
+            .setMessage("Used as a fallback value stored locally for recovery configuration. It does not log into Roblox.")
+            .setView(input)
+            .setNegativeButton("Clear") { _, _ ->
+                settings.edit().remove("recovery_fallback_target").apply()
+                renderCurrentPage()
+            }
+            .setNeutralButton("Cancel", null)
+            .setPositiveButton("Save") { _, _ ->
+                val value = input.text.toString().trim()
+                settings.edit().putString("recovery_fallback_target", value).apply()
+                renderCurrentPage()
+            }
+            .show()
     }
 
     private fun renderSettings() {
