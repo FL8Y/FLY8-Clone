@@ -20,12 +20,14 @@ class ConnectionManager(context: Context) {
         store.saveWireless(state)
     }
 
+    fun bridgeFor(method: ConnectionMethod): CommandBridge = when (method) {
+        ConnectionMethod.SHIZUKU -> ShizukuBridge()
+        ConnectionMethod.ROOT -> RootBridge()
+        ConnectionMethod.WIRELESS_DEBUGGING -> WirelessAdbBridge(appContext)
+    }
+
     fun bridge(): CommandBridge {
-        return when (currentMethod()) {
-            ConnectionMethod.SHIZUKU -> ShizukuBridge()
-            ConnectionMethod.ROOT -> RootBridge()
-            ConnectionMethod.WIRELESS_DEBUGGING -> WirelessAdbBridge(appContext)
-        }
+        return bridgeFor(currentMethod())
     }
 
     fun wirelessBridge(): WirelessAdbBridge = WirelessAdbBridge(appContext)
