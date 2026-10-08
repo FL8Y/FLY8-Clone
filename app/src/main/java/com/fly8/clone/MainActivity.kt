@@ -80,7 +80,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private enum class Page { DASHBOARD, SESSIONS, ABOUT, APPS, RECOVERY, LOGS, SETTINGS }
+    private enum class Page { DASHBOARD, SESSIONS, ABOUT, APPS, RECOVERY, LOGS, CONTROLS, SETTINGS }
 
     private var page = Page.DASHBOARD
 
@@ -215,6 +215,7 @@ class MainActivity : Activity() {
             Page.APPS -> renderApps()
             Page.RECOVERY -> renderRecovery()
             Page.LOGS -> renderLogs()
+            Page.CONTROLS -> renderControls()
             Page.SETTINGS -> renderSettings()
         }
         refreshStatus()
@@ -235,6 +236,10 @@ class MainActivity : Activity() {
         configureHeader("Dashboard", "FLY8 • lightweight session control")
         headerActions.addView(actionButton("Apps") {
             page = Page.APPS
+            renderCurrentPage()
+        })
+        headerActions.addView(actionButton("Controls") {
+            page = Page.CONTROLS
             renderCurrentPage()
         })
         headerActions.addView(actionButton("Logs") { page = Page.LOGS; renderCurrentPage() })
@@ -1091,6 +1096,126 @@ class MainActivity : Activity() {
             refreshStatus()
             renderCurrentPage()
         }
+    }
+
+    private fun renderControls() {
+        configureHeader("Connect controls", "Choose one control method • Shizuku is optional", true)
+
+        addSection("Current connection", connectionManager.statusText())
+        val current = card()
+        val currentBody = vertical()
+        currentBody.addView(textPair(
+            "Controls " + if (connectionReady()) "connected" else "disconnected",
+            if (connectionReady()) {
+                "FLY8 is ready to manage supported sessions through " + connectionManager.statusText() + "."
+            } else {
+                "Choose Wireless debugging, Root, or Shizuku below. There is no activation account or remote license gate."
+            },
+            16f
+        ))
+        currentBody.addView(actionButton("Open full setup") { showConnectControls() })
+        current.addView(currentBody)
+        content.addView(current)
+
+        addSection("Wireless debugging", "Primary free local ADB option • pairing and connection are separate steps.")
+        addConnectionCard(
+            "Wireless debugging",
+            "Enable Wireless debugging, pair this device, then connect to the ADB-over-Wi-Fi endpoint. FLY8 can discover pairing/connect endpoints automatically.",
+            listOf(
+                "Open Developer options" to {
+                    runCatching {
+                        startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+                    }.onFailure {
+                        startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+                    }
+                },
+                "Pair device" to { showConnectControls() },
+                "Connect paired device" to {
+                    executor.execute {
+                        val result = connectionManager.wirelessBridge().connectAutomatically()
+                        runOnUiThread {
+                            if (result.ok) {
+                                connectionManager.saveWireless(connectionManager.wireless().copy(paired = true))
+                                refreshStatus()
+                                renderCurrentPage()
+                                toast("Wireless debugging connected.")
+                            } else {
+                                toast(result.message)
+                            }
+                        }
+                    }
+                },
+                "Wireless debugging settings" to {
+                    val intent = Intent("android.settings.WIRELESS_SETTINGS")
+                    runCatching { startActivity(intent) }.onFailure {
+                        startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+                    }
+                },
+                "Manual setup" to { showConnectControls() }
+            )
+        )
+
+        addSection("Root access", "Use this only on a device where root is already available.")
+        addConnectionCard(
+            "Root access",
+            "FLY8 can use the system su bridge as an alternative to ADB/Shizuku. The root manager controls whether access is granted.",
+            listOf(
+                "Connect with root" to {
+                    Thread {
+                        val result = connectionManager.bridgeFor(ConnectionMethod.ROOT).use { it.check() }
+                        runOnUiThread {
+                            if (result.ok) {
+                                connectionManager.markRootVerified()
+                                connectionManager.setMethod(ConnectionMethod.ROOT)
+                                renderCurrentPage()
+                                toast("Root controls connected.")
+                            } else toast(result.message)
+                        }
+                    }.start()
+                }
+            )
+        )
+
+        addSection("Shizuku", "Optional privileged bridge.")
+        addConnectionCard(
+            "Shizuku",
+            "Shizuku remains an independent optional connection method. FLY8 never requires it when another supported control method works.",
+            listOf(
+                "Connect with Shizuku" to {
+                    connectionManager.setMethod(ConnectionMethod.SHIZUKU)
+                    Thread {
+                        val result = connectionManager.checkSelected()
+                        runOnUiThread {
+                            if (result.ok) {
+                                renderCurrentPage()
+                                toast("Shizuku controls connected.")
+                            } else toast(result.message)
+                        }
+                    }.start()
+                },
+                "Open Shizuku permission flow" to { showConnectControls() }
+            )
+        )
+
+        addInfoCard(
+            "Connection behavior",
+            "FLY8 does not keep a permanent polling loop for connectivity. A saved Wireless-debugging pairing can be reconnected when you explicitly return to the app, and the selected bridge is reused for session operations."
+        )
+    }
+
+    private fun addConnectionCard(
+        title: String,
+        body: String,
+        actions: List<Pair<String, () -> Unit>>
+    ) {
+        val card = card()
+        val box = vertical()
+        box.addView(textPair(title, body, 16f))
+        actions.forEach { (label, click) ->
+            box.addView(actionButton(label, click))
+        }
+        card.addView(box)
+        content.addView(card)
     }
 
     private fun showQuickMenu() {
