@@ -1,35 +1,66 @@
 package com.fly8.clone.connection
 
-import com.flyfishxu.kadb.Kadb
+import android.content.Context
 
-data class WirelessAdbConfig(
-    val host: String,
-    val port: Int
-)
-
-class WirelessAdbBridge(private val config: WirelessAdbConfig) : CommandBridge {
+class WirelessAdbBridge(context: Context) : CommandBridge {
     override val method = ConnectionMethod.WIRELESS_DEBUGGING
+    private val manager = Fly8AdbConnectionManager.get(context)
 
     override fun check(): BridgeResult {
-        if (config.host.isBlank() || config.port !in 1..65535) {
-            return BridgeResult(-20, error = "Wireless debugging connection details are incomplete.")
+        if (manager.isConnected) {
+            return BridgeResult(0, output = "Wireless debugging connected.")
         }
-        return run("echo FLY8_CONNECTED")
+
+        return manager.connectAutomatically().fold(
+            onSuccess = { BridgeResult(0, output = "Wireless debugging connected.") },
+            onFailure = {
+                BridgeResult(
+                    -1,
+                    error = it.message ?: "Could not connect to Wireless debugging."
+                )
+            }
+        )
     }
 
-    override fun run(command: String): BridgeResult {
-        return try {
-            Kadb.create(
-                host = config.host,
-                port = config.port,
-                connectTimeout = 7000,
-                socketTimeout = 7000
-            ).use { adb ->
-                val result = adb.shell(command)
-                BridgeResult(result.exitCode, result.output, result.errorOutput)
+    fun pair(host: String, port: Int, code: String): BridgeResult {
+        return manager.pairDevice(host, port, code).fold(
+            onSuccess = { BridgeResult(0, output = "Wireless debugging pairing completed.") },
+            onFailure = {
+                BridgeResult(
+                    -1,
+                    error = it.message ?: "Wireless debugging pairing failed."
+                )
             }
-        } catch (t: Throwable) {
-            BridgeResult(-1, error = t.message ?: "Could not connect to Wireless debugging.")
-        }
+        )
+    }
+
+    fun connect(host: String, port: Int): BridgeResult {
+        return manager.connectManually(host, port).fold(
+            onSuccess = { BridgeResult(0, output = "Wireless debugging connected.") },
+            onFailure = {
+                BridgeResult(
+                    -1,
+                    error = it.message ?: "Wireless debugging connection failed."
+                )
+            }
+        )
+    }
+
+    fun connectAutomatically(): BridgeResult {
+        return manager.connectAutomatically().fold(
+            onSuccess = { BridgeResult(0, output = "Wireless debugging connected.") },
+            onFailure = {
+                BridgeResult(
+                    -1,
+                    error = it.message ?: "Automatic Wireless debugging discovery failed."
+                )
+            }
+        )
+    }
+
+    override fun run(command: String): BridgeResult = manager.runCommand(command)
+
+    override fun close() {
+        manager.disconnectQuietly()
     }
 }
