@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -n -E 'EysClone|io\.eysclone\.app|VirtualApp|XposedInstaller|SPAKE2|LibADB' -- ':!THIRD_PARTY_NOTICES.md'; then
+          if git grep -n -E 'EysClone|io\.eysclone\.app|VirtualApp|XposedInstaller|SPAKE2|LibADB' -- ':!THIRD_PARTY_NOTICES.md' ':!.github/workflows/android.yml'; then
             echo "Legacy prototype material found in tracked project files."
             exit 1
           fi
@@ -51,11 +51,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          AAPT2="$ANDROID_HOME/build-tools/36.0.0/aapt2"
           apk="app/build/outputs/apk/release/app-release.apk"
           test -s "$apk"
           echo "APK size: $(du -h "$apk" | cut -f1)"
-          aapt2 dump badging "$apk" | grep -F "package: name='com.fly8.clone'"
-          aapt2 dump badging "$apk" | grep -F "application-label:'FLY8 Clone'"
+          "$AAPT2" dump badging "$apk" | grep -F "package: name='com.fly8.clone'"
+          "$AAPT2" dump badging "$apk" | grep -F "application-label:'FLY8 Clone'"
           if unzip -l "$apk" | grep -E 'EysClone|XposedInstaller|VirtualApp|SPAKE2|LibADB'; then
             echo "Forbidden legacy payload found inside APK."
             exit 1
