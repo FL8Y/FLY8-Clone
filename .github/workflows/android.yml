@@ -38,8 +38,12 @@ jobs:
       - name: Build release
         run: gradle --no-daemon assembleRelease
 
+      - name: Show APK output
+        run: find app/build/outputs/apk -type f -name "*.apk" -print
+
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: FLY8-Clone-beta
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
