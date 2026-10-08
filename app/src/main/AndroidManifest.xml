@@ -3,8 +3,11 @@
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
     <application
         android:allowBackup="false"
+        android:icon="@drawable/fly8_logo"
         android:label="FLY8 Clone"
+        android:roundIcon="@drawable/fly8_logo"
         android:supportsRtl="true"
+        android:resizeableActivity="true"
         android:theme="@style/Theme.FLY8">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
@@ -12,6 +15,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <receiver
+            android:name=".RecoveryReceiver"
+            android:enabled="true"
+            android:exported="false" />
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
             android:authorities="com.fly8.clone.shizuku"
