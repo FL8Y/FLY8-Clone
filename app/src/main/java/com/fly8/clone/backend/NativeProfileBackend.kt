@@ -25,7 +25,7 @@ class NativeProfileBackend(private val bridge: CommandBridge) : CloneBackend {
                 // Continue to the secondary-user path below.
             } else {
                 val attached = installInto(
-                    existing.userId,
+                    existing.id,
                     packageName,
                     label,
                     ProfileKind.CLONE_PROFILE,
