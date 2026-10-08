@@ -25,7 +25,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.fly8.clone.backend.CloneBackend
-import com.fly8.clone.backend.ShizukuCloneBackend
+import com.fly8.clone.backend.NativeProfileBackend
+import com.fly8.clone.connection.CommandBridge
+import com.fly8.clone.connection.ConnectionManager
+import com.fly8.clone.connection.ConnectionMethod
+import com.fly8.clone.connection.ConnectionUi
 import com.fly8.clone.model.CloneEntry
 import com.fly8.clone.model.ProfileKind
 import com.fly8.clone.model.SessionState
@@ -61,7 +65,8 @@ class MainActivity : Activity() {
 
     private val clones = mutableListOf<CloneEntry>()
     private val executor = Executors.newSingleThreadExecutor()
-    private val backend: CloneBackend = ShizukuCloneBackend()
+    private val connectionManager by lazy { ConnectionManager(applicationContext) }
+    private val backend: CloneBackend get() = NativeProfileBackend(connectionManager.bridge())
     private val settings by lazy { getSharedPreferences("fly8_settings", MODE_PRIVATE) }
 
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
@@ -248,22 +253,21 @@ class MainActivity : Activity() {
     }
 
     private fun addControlCard() {
-        val ready = shizukuReady()
-        val androidOkay = Build.VERSION.SDK_INT >= 35
+        val ready = connectionReady()
+        val method = connectionManager.currentMethod()
         val card = card()
         val body = vertical()
         body.addView(textPair("Control state", when {
-            !androidOkay -> "Native clone backend is unavailable before Android 15."
+            !ready -> "No control connection is ready. Choose Wireless debugging, Shizuku, or Root."
             !ready -> "Connect Shizuku to start and control isolated sessions."
-            else -> "Controls connected. FLY8 can manage supported clone profiles."
+            else -> "Controls connected through " + connectionManager.statusText() + ". FLY8 can manage supported clone profiles."
         }, 16f))
         body.addView(badge(
             when {
-                !androidOkay -> "ANDROID 15+ REQUIRED"
                 !ready -> "CONNECT CONTROLS"
-                else -> "CONNECTED"
+                else -> method.name.replace('_', ' ').uppercase(Locale.ROOT)
             },
-            if (androidOkay && ready) good else primary
+            if (ready) good else primary
         ))
         val actions = horizontal()
         actions.addView(actionButton("Connect controls") { showConnectControls() }, buttonWeight())
@@ -902,7 +906,7 @@ class MainActivity : Activity() {
     private fun navWeight() = LinearLayout.LayoutParams(0, -1, 1f)
 
     private fun createClone(packageName: String, label: String) {
-        if (!shizukuReady()) {
+        if (!connectionReady()) {
             showTextDialog("Connect controls", "Start Shizuku and grant FLY8 permission before creating a session.")
             return
         }
@@ -1086,29 +1090,10 @@ class MainActivity : Activity() {
     }
 
     private fun showConnectControls() {
-        val dialog = Dialog(this)
-        val root = vertical().apply {
-            setPadding(dp(20), dp(20), dp(20), dp(20))
-            setBackgroundColor(panel)
+        ConnectionUi.show(this, connectionManager) {
+            refreshStatus()
+            renderCurrentPage()
         }
-        root.addView(textPair("Connect controls", "FLY8 uses Shizuku as an optional privileged bridge. There is no activation account or remote gate.", 20f))
-        root.addView(textPair("Shizuku", when {
-            !Shizuku.pingBinder() -> "Unavailable. Start Shizuku first."
-            Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED -> "Running, but FLY8 permission is required."
-            else -> "Connected and authorized."
-        }, 15f))
-        root.addView(actionButton("Grant FLY8 permission") {
-            if (Shizuku.pingBinder()) {
-                Shizuku.requestPermission(7)
-                toast("Permission request sent to Shizuku.")
-            } else toast("Shizuku is not running.")
-        })
-        root.addView(textPair("Android compatibility", if (Build.VERSION.SDK_INT >= 35) "Android 15+ detected. OEM clone-profile support still varies." else "Android 15+ is required for the native clone backend.", 14f))
-        root.addView(textPair("Recovery", "Scheduled restart is available without keeping a permanent polling loop alive.", 14f))
-        root.addView(actionButton("Close") { dialog.dismiss() })
-        dialog.setContentView(root)
-        dialog.show()
-        dialog.window?.setLayout(dp(380), dp(620))
     }
 
     private fun showQuickMenu() {
@@ -1251,7 +1236,7 @@ class MainActivity : Activity() {
     }
 
     private fun syncProfiles() {
-        if (!shizukuReady()) return
+        if (!connectionReady()) return
         executor.execute {
             val result = Shell.run("pm list users")
             if (result.code != 0) return@execute
@@ -1278,20 +1263,19 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun connectionReady(): Boolean {
+        return runCatching {
+            connectionManager.bridge().use { it.check().ok }
+        }.getOrDefault(false)
+    }
+
     private fun refreshStatus() {
         if (!::statusView.isInitialized) return
         statusView.text = when {
-            Build.VERSION.SDK_INT < 35 -> "Native clone backend unavailable • Android " + Build.VERSION.RELEASE
-            !Shizuku.pingBinder() -> "Shizuku unavailable • Android " + Build.VERSION.RELEASE + " • " + clones.size + " sessions"
-            Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED ->
-                "Shizuku permission needed • Android " + Build.VERSION.RELEASE + " • " + clones.size + " sessions"
-            else -> "Shizuku connected • Android " + Build.VERSION.RELEASE + " • " + clones.size + " sessions"
+            connectionReady() -> "Controls connected • " + connectionManager.statusText() + " • Android " + Build.VERSION.RELEASE + " • " + clones.size + " sessions"
+            else -> "Controls disconnected • choose Wireless debugging, Shizuku, or Root • " + clones.size + " sessions"
         }
     }
-
-    private fun shizukuReady(): Boolean = runCatching {
-        Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-    }.getOrDefault(false)
 
     private fun confirmDestructive() = settings.getBoolean("confirm_destructive", true)
 
