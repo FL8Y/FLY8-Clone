@@ -43,7 +43,7 @@ class Fly8AdbConnectionManager private constructor(
     fun pairDevice(host: String, port: Int, code: String): Result<Unit> = runCatching {
         require(host.isNotBlank()) { "Wireless debugging address is missing." }
         require(port in 1..65535) { "Wireless debugging pairing port is invalid." }
-        require(code.matches(Regex("\d{6}"))) { "Enter the six-digit Wireless debugging pairing code." }
+        require(code.matches(Regex("\\d{6}"))) { "Enter the six-digit Wireless debugging pairing code." }
         pair(host, port, code)
     }
 
