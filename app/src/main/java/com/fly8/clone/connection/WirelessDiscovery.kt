@@ -3,6 +3,8 @@ package com.fly8.clone.connection
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Handler
+import android.os.Looper
 
 class WirelessDiscovery(context: Context) {
     private val nsd = context.getSystemService(NsdManager::class.java)
@@ -23,42 +25,57 @@ class WirelessDiscovery(context: Context) {
         }
 
         val found = LinkedHashMap<String, NsdServiceInfo>()
-        var listener: NsdManager.DiscoveryListener? = null
+        var finished = false
+        val handler = Handler(Looper.getMainLooper())
 
-        listener = object : NsdManager.DiscoveryListener {
+        fun finish(listener: NsdManager.DiscoveryListener?) {
+            if (finished) return
+            finished = true
+            runCatching {
+                listener?.let { manager.stopServiceDiscovery(it) }
+            }
+            callback(found.values.toList())
+        }
+
+        val listener = object : NsdManager.DiscoveryListener {
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-                callback(emptyList())
-                runCatching { manager.stopServiceDiscovery(this) }
+                finish(this)
             }
 
-            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) = Unit
+            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
+                finish(this)
+            }
 
             override fun onDiscoveryStarted(serviceType: String) = Unit
 
             override fun onDiscoveryStopped(serviceType: String) {
-                callback(found.values.toList())
+                finish(this)
             }
 
             override fun onServiceFound(service: NsdServiceInfo) {
                 manager.resolveService(service, object : NsdManager.ResolveListener {
                     override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) = Unit
+
                     override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                        val key = serviceInfo.host.hostAddress.orEmpty() + ":" + serviceInfo.port
-                        found[key] = serviceInfo
+                        val host = serviceInfo.host?.hostAddress.orEmpty()
+                        if (host.isNotBlank()) {
+                            found[serviceInfo.serviceName + ":" + serviceInfo.port] = serviceInfo
+                        }
                     }
                 })
             }
 
             override fun onServiceLost(service: NsdServiceInfo) {
-                val key = service.serviceName
+                val host = service.host?.hostAddress.orEmpty()
+                val key = service.serviceName + ":" + service.port
                 found.remove(key)
             }
         }
 
         manager.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, listener)
 
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            listener?.let { runCatching { manager.stopServiceDiscovery(it) } }
+        handler.postDelayed({
+            finish(listener)
         }, timeoutMs)
     }
 }
