@@ -15,7 +15,7 @@ class NativeProfileBackend(private val bridge: CommandBridge) : CloneBackend {
         // on supported devices. Reuse an existing FLY8-created clone profile instead of
         // creating a new profile for every session.
         findReusableFly8CloneProfile()?.let { existing ->
-            val installed = bridge.run("pm list packages --user " + existing.userId + " " + packageName)
+            val installed = bridge.run("pm list packages --user " + existing.id + " " + packageName)
             if (!installed.ok) {
                 return Result.failure(IllegalStateException(installed.message))
             }
