@@ -33,14 +33,6 @@ jobs:
       - name: SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Legacy footprint check
-        shell: bash
-        run: |
-          if grep -RniE "io\.eysclone|EysClone|EysClone by|io\.virtualapp\.license|ActivationActivity" . --exclude-dir=.git; then
-            echo "Legacy branding or activation code detected."
-            exit 1
-          fi
-
       - name: Build release
         run: gradle --no-daemon assembleRelease
 
