@@ -40,5 +40,4 @@ dependencies {
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
-    implementation("org.bouncycastle:bcpkix-jdk15to18:1.81")
 }
