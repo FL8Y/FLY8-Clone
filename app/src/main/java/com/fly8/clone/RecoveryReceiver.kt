@@ -25,17 +25,53 @@ class RecoveryReceiver : BroadcastReceiver() {
                     return@Thread
                 }
 
-                val bridgeManager = ConnectionManager(appContext)
-                val backend = NativeProfileBackend(bridgeManager.bridge())
-                val result = backend.launch(clone)
+                val manager = ConnectionManager(appContext)
+                val bridge = manager.bridge()
 
-                if (result.isSuccess) {
-                    activityLog.add("Scheduled recovery: " + clone.label + " • " + bridgeManager.statusText())
-                } else {
-                    activityLog.add("Recovery failed: " + clone.label + " • " + (result.exceptionOrNull()?.message ?: "unknown error"))
+                try {
+                    val readiness = bridge.check()
+                    if (!readiness.ok) {
+                        activityLog.add("Recovery postponed: controls unavailable for " + clone.label)
+                        RecoveryScheduler.schedule(appContext, clone)
+                        return@Thread
+                    }
+
+                    if (SessionProbe.isRunning(bridge, clone)) {
+                        activityLog.add("Recovery skipped: " + clone.label + " is still running")
+                        RecoveryScheduler.schedule(appContext, clone)
+                        return@Thread
+                    }
+
+                    val backend = NativeProfileBackend(bridge)
+                    val started = backend.launch(clone)
+                    if (started.isFailure) {
+                        activityLog.add(
+                            "Recovery failed: " + clone.label + " • " +
+                                (started.exceptionOrNull()?.message ?: "launch failed")
+                        )
+                        RecoveryScheduler.schedule(appContext, clone)
+                        return@Thread
+                    }
+
+                    activityLog.add("Recovery restart: " + clone.label)
+
+                    if (clone.rejoinTarget.isNotBlank()) {
+                        Thread.sleep(2500)
+                        val rejoin = RejoinLauncher.launch(bridge, clone)
+                        if (rejoin.isSuccess) {
+                            activityLog.add("Recovery rejoin requested: " + clone.label)
+                        } else {
+                            activityLog.add(
+                                "Recovery rejoin failed: " + clone.label + " • " +
+                                    (rejoin.exceptionOrNull()?.message ?: "invalid target")
+                            )
+                        }
+                    }
+
+                    RecoveryScheduler.schedule(appContext, clone)
+                } finally {
+                    bridge.close()
                 }
-
-                RecoveryScheduler.schedule(appContext, clone)
             } finally {
                 pendingResult.finish()
             }
