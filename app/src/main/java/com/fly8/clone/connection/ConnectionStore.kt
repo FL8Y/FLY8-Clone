@@ -12,6 +12,8 @@ data class WirelessPairingState(
 class ConnectionStore(context: Context) {
     private val prefs = context.getSharedPreferences("fly8_connection", Context.MODE_PRIVATE)
 
+    fun contextPrefs() = prefs
+
     fun method(): ConnectionMethod =
         runCatching {
             ConnectionMethod.valueOf(
