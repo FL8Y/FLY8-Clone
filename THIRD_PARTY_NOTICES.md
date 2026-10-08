@@ -2,14 +2,15 @@
 
 FLY8 Clone is an independently implemented application. The notices below cover dependencies actually used by the current build.
 
-## Kadb 2.1.3
+## LibADB Android 3.1.1
 
-Kadb is used as the direct ADB client for FLY8 Wireless debugging control.
+LibADB Android is used for FLY8's Wireless debugging ADB/TLS transport, pairing, and automatic mDNS connection discovery.
 
-License: Apache License 2.0
-Project: https://github.com/flyfishxu/Kadb
+The library is dual licensed under GPL-3.0-or-later or Apache-2.0; FLY8 uses the Apache-2.0 licensing option.
 
-Kadb's own runtime dependencies retain their respective licenses and notices.
+Project: https://github.com/MuntashirAkon/libadb-android
+
+Its LGPL dependency and other transitive notices remain applicable and are retained according to their own terms.
 
 ## Kotlinx Coroutines
 
