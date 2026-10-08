@@ -9,15 +9,33 @@ class RecoveryReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val userId = RecoveryScheduler.userId(intent)
         if (userId < 0) return
-        val store = CloneStore(context)
-        val clones = store.load()
-        val clone = clones.firstOrNull { it.userId == userId } ?: return
-        if (!clone.recoveryEnabled) return
 
+        val pendingResult = goAsync()
+        val appContext = context.applicationContext
         Thread {
-            val backend = ShizukuCloneBackend()
-            backend.launch(clone)
-            RecoveryScheduler.schedule(context, clone)
+            try {
+                val store = CloneStore(appContext)
+                val activityLog = ActivityLogStore(appContext)
+                val clone = store.load().firstOrNull { it.userId == userId }
+                    ?: return@Thread
+
+                if (!clone.recoveryEnabled) {
+                    RecoveryScheduler.cancel(appContext, clone)
+                    return@Thread
+                }
+
+                val backend = ShizukuCloneBackend()
+                val result = backend.launch(clone)
+                if (result.isSuccess) {
+                    activityLog.add("Scheduled recovery: " + clone.label)
+                } else {
+                    activityLog.add("Recovery failed: " + clone.label)
+                }
+
+                RecoveryScheduler.schedule(appContext, clone)
+            } finally {
+                pendingResult.finish()
+            }
         }.start()
     }
 }
