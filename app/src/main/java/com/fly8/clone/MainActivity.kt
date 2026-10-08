@@ -38,12 +38,12 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
-    private val background = Color.rgb(0, 0, 1)
+    private val uiBackground = Color.rgb(0, 0, 1)
     private val surface = Color.rgb(1, 2, 5)
     private val panel = Color.rgb(1, 19, 42)
     private val primary = Color.rgb(23, 110, 148)
     private val secondary = Color.rgb(1, 48, 76)
-    private val text = Color.rgb(252, 253, 253)
+    private val uiText = Color.rgb(252, 253, 253)
     private val pink = Color.rgb(245, 218, 218)
     private val muted = Color.rgb(98, 103, 115)
     private val line = Color.rgb(18, 50, 74)
@@ -63,13 +63,13 @@ class MainActivity : Activity() {
     private val backend: CloneBackend = ShizukuCloneBackend()
     private val settings by lazy { getSharedPreferences("fly8_settings", MODE_PRIVATE) }
 
-    private val binderReceivedListener = Runnable {
+    private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
         runOnUiThread {
             refreshStatus()
             renderCurrentPage()
         }
     }
-    private val binderDeadListener = Runnable {
+    private val binderDeadListener = Shizuku.OnBinderDeadListener {
         runOnUiThread {
             refreshStatus()
             renderCurrentPage()
@@ -108,7 +108,7 @@ class MainActivity : Activity() {
     private fun buildRoot(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(uiBackground)
         }
 
         val header = LinearLayout(this).apply {
@@ -121,7 +121,7 @@ class MainActivity : Activity() {
 
         titleView = TextView(this).apply {
             textSize = 27f
-            setTextColor(text)
+            setTextColor(uiText)
             typeface = Typeface.DEFAULT_BOLD
         }
         top.addView(titleView, LinearLayout.LayoutParams(0, dp(44), 1f))
@@ -793,7 +793,7 @@ class MainActivity : Activity() {
     private fun badge(label: String, color: Int) = TextView(this).apply {
         text = label
         textSize = 9f
-        setTextColor(background)
+        setTextColor(uiBackground)
         typeface = Typeface.DEFAULT_BOLD
         gravity = Gravity.CENTER
         setPadding(dp(9), dp(5), dp(9), dp(5))
