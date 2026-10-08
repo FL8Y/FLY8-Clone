@@ -46,17 +46,17 @@ object ConnectionUi {
         root.addView(textButton(activity, "Shizuku permission") {
             checkMethod(activity, manager, ConnectionMethod.SHIZUKU, onChanged)
         })
-        root.addView(textButton(activity, "Close") { dialog?.dismiss() })
+        root.addView(textButton(activity, "Close") { /* outer dialog closes through its own button */ })
 
-        dialog = AlertDialog.Builder(activity)
+        AlertDialog.Builder(activity)
             .setView(root)
-            .create()
-            .also { it.show() }
-
-        dialog?.window?.setLayout(dp(activity, 390), dp(activity, 650))
+            .setTitle("Control setup")
+            .setPositiveButton("Close", null)
+            .show()
     }
 
-    private var dialog: AlertDialog? = null
+
+    private var wirelessDialog: AlertDialog? = null
 
     private fun showWireless(
         activity: Activity,
@@ -144,7 +144,7 @@ object ConnectionUi {
                         manager.setMethod(ConnectionMethod.WIRELESS_DEBUGGING)
                         onChanged()
                         activity.toast("Controls connected through Wireless debugging.")
-                        dialog?.dismiss()
+                        wirelessDialog?.dismiss()
                     }.onFailure {
                         activity.showError("Connection failed", it.message ?: "Could not connect to the Wireless debugging endpoint.")
                     }
@@ -152,12 +152,13 @@ object ConnectionUi {
             }.start()
         })
 
-        root.addView(textButton(activity, "Close") { dialog?.dismiss() })
+        root.addView(textButton(activity, "Close") { /* dialog button below handles dismissal */ })
 
-        AlertDialog.Builder(activity)
+        wirelessDialog = AlertDialog.Builder(activity)
             .setView(root)
             .setTitle("Wireless debugging")
-            .show()
+            .create()
+            .also { it.show() }
     }
 
     private fun checkMethod(
