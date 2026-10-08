@@ -29,7 +29,6 @@ import java.security.SecureRandom
 import java.security.cert.Certificate
 import java.security.cert.CertificateFactory
 import java.security.spec.PKCS8EncodedKeySpec
-import java.security.spec.X509EncodedKeySpec
 import java.util.Date
 import java.util.Random
 import java.util.concurrent.TimeUnit
@@ -130,10 +129,10 @@ class Fly8AdbConnectionManager private constructor(
                 }
 
                 val raw = result.toString().trim()
-                val match = Regex(marker + ":(\\\\d+)").find(raw)
+                val match = Regex(marker + ":(\\d+)").find(raw)
                 val code = match?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
                 val clean = raw.replace(
-                    Regex("(?m)^" + Regex.escape(marker) + ":\\\\d+\\\\s*$"),
+                    Regex("(?m)^" + Regex.escape(marker) + ":\\d+\\s*$"),
                     ""
                 ).trim()
 
