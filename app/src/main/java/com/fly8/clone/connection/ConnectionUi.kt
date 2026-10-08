@@ -211,8 +211,7 @@ object ConnectionUi {
                     return@runOnUiThread
                 }
                 val labels = services.map {
-                    it.serviceName + "
-" + it.host.hostAddress.orEmpty() + ":" + it.port
+                    it.serviceName + "\n" + it.host.hostAddress.orEmpty() + ":" + it.port
                 }.toTypedArray()
                 AlertDialog.Builder(activity)
                     .setTitle("Discovered endpoints")
@@ -252,8 +251,7 @@ object ConnectionUi {
 
     private fun pair(activity: Activity, title: String, body: String) =
         TextView(activity).apply {
-            text = title + " + "\n" + body
-            textSize = 16f
+            text = title + "\n" + body
             setTextColor(0xFFFCFDFD.toInt())
             setPadding(dp(activity, 4), dp(activity, 4), dp(activity, 4), dp(activity, 8))
         }
