@@ -10,7 +10,7 @@ class ActivityLogStore(context: Context) {
         val current = load().toMutableList()
         current.add(0, System.currentTimeMillis().toString() + "|" + message)
         val array = JSONArray()
-        current.take(50).forEach { array.put(it) }
+        current.take(100).forEach { array.put(it) }
         prefs.edit().putString("items", array.toString()).apply()
     }
 
@@ -20,4 +20,8 @@ class ActivityLogStore(context: Context) {
             for (i in 0 until array.length()) add(array.getString(i))
         }
     }.getOrElse { emptyList() }
+
+    fun clear() {
+        prefs.edit().remove("items").apply()
+    }
 }
