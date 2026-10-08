@@ -12,13 +12,6 @@ Project: https://github.com/MuntashirAkon/libadb-android
 
 Its LGPL dependency and other transitive notices remain applicable and are retained according to their own terms.
 
-## Kotlinx Coroutines
-
-Kotlinx Coroutines is used by the wireless pairing bridge.
-
-License: Apache License 2.0
-Project: https://github.com/Kotlin/kotlinx.coroutines
-
 ## Shizuku API and provider 13.1.5
 
 FLY8 uses the Shizuku client API/provider as an optional control method.
