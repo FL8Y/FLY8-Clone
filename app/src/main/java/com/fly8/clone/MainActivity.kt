@@ -27,6 +27,7 @@ import androidx.core.content.ContextCompat
 import com.fly8.clone.backend.CloneBackend
 import com.fly8.clone.backend.NativeProfileBackend
 import com.fly8.clone.connection.ConnectionManager
+import com.fly8.clone.connection.ConnectionMethod
 import com.fly8.clone.connection.ConnectionUi
 import com.fly8.clone.model.CloneEntry
 import com.fly8.clone.model.ProfileKind
