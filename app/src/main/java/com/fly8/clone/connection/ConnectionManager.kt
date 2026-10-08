@@ -26,9 +26,7 @@ class ConnectionManager(context: Context) {
         ConnectionMethod.WIRELESS_DEBUGGING -> WirelessAdbBridge(appContext)
     }
 
-    fun bridge(): CommandBridge {
-        return bridgeFor(currentMethod())
-    }
+    fun bridge(): CommandBridge = bridgeFor(currentMethod())
 
     fun wirelessBridge(): WirelessAdbBridge = WirelessAdbBridge(appContext)
 
@@ -44,25 +42,24 @@ class ConnectionManager(context: Context) {
         }
     }
 
-    fun markRootVerified() { store.contextPrefs().edit().putBoolean("root_verified", true).apply() }
+    fun markRootVerified() {
+        store.contextPrefs().edit().putBoolean("root_verified", true).apply()
+    }
 
-    fun checkSelected(): BridgeResult {
-        return when (currentMethod()) {
-            ConnectionMethod.WIRELESS_DEBUGGING ->
-                wirelessBridge().check()
-            ConnectionMethod.SHIZUKU ->
-                bridge().use { it.check() }
-            ConnectionMethod.ROOT ->
-                bridge().use { it.check() }
-        }
+    fun checkSelected(): BridgeResult = when (currentMethod()) {
+        ConnectionMethod.WIRELESS_DEBUGGING -> wirelessBridge().check()
+        ConnectionMethod.SHIZUKU -> bridge().use { it.check() }
+        ConnectionMethod.ROOT -> bridge().use { it.check() }
     }
 
     fun statusText(): String {
         return when (currentMethod()) {
             ConnectionMethod.SHIZUKU ->
-                if (isReady()) "Shizuku • connected" else "Shizuku • not connected"
+                if (isReady()) "Shizuku • connected" else "Shizuku • optional • not connected"
+
             ConnectionMethod.ROOT ->
-                if (isReady()) "Root • connected" else "Root • check required"
+                if (isReady()) "Root • connected" else "Root • optional • not connected"
+
             ConnectionMethod.WIRELESS_DEBUGGING -> {
                 val w = wireless()
                 when {
