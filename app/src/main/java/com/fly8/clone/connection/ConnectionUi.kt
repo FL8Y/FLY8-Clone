@@ -105,7 +105,7 @@ object ConnectionUi {
             val c = code.text.toString().trim()
             activity.toast("Pairing…")
             Thread {
-                val result = WirelessPairing.pair(h, p, c)
+                val result = WirelessPairing.pair(activity, h, p, c)
                 activity.runOnUiThread {
                     result.onSuccess {
                         val saved = WirelessPairingState(
@@ -125,12 +125,35 @@ object ConnectionUi {
             }.start()
         })
 
+        root.addView(textButton(activity, "Auto-discover & connect") {
+            activity.toast("Searching for Wireless debugging…")
+            Thread {
+                val result = WirelessPairing.autoConnect(activity)
+                activity.runOnUiThread {
+                    result.onSuccess {
+                        manager.setMethod(ConnectionMethod.WIRELESS_DEBUGGING)
+                        manager.saveWireless(
+                            manager.wireless().copy(paired = true)
+                        )
+                        onChanged()
+                        activity.toast("Wireless debugging connected.")
+                        wirelessDialog?.dismiss()
+                    }.onFailure {
+                        activity.showError(
+                            "Automatic connection failed",
+                            it.message ?: "No Wireless debugging endpoint could be discovered."
+                        )
+                    }
+                }
+            }.start()
+        })
+
         root.addView(textButton(activity, "Test & connect") {
             val h = host.text.toString().trim()
             val p = connectionPort.text.toString().toIntOrNull() ?: 0
             activity.toast("Connecting…")
             Thread {
-                val result = WirelessPairing.test(h, p)
+                val result = WirelessPairing.test(activity, h, p)
                 activity.runOnUiThread {
                     result.onSuccess {
                         manager.saveWireless(
