@@ -252,8 +252,7 @@ object ConnectionUi {
 
     private fun pair(activity: Activity, title: String, body: String) =
         TextView(activity).apply {
-            text = title + "
-" + body
+            text = title + " + "\n" + body
             textSize = 16f
             setTextColor(0xFFFCFDFD.toInt())
             setPadding(dp(activity, 4), dp(activity, 4), dp(activity, 4), dp(activity, 8))
