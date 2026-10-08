@@ -149,7 +149,7 @@ class MainActivity : Activity() {
 
         scroll = ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(background)
+            setBackgroundColor(uiBackground)
         }
         content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -400,7 +400,7 @@ class MainActivity : Activity() {
         info.addView(TextView(this).apply {
             text = clone.label
             textSize = 14f
-            setTextColor(text)
+            setTextColor(uiText)
             typeface = Typeface.DEFAULT_BOLD
         })
         info.addView(TextView(this).apply {
@@ -425,7 +425,6 @@ class MainActivity : Activity() {
             strokeColor = line
         }
         preview.addView(FrameLayoutCompat(this).apply {
-            gravity = Gravity.CENTER
             val image = appIcon(clone.packageName)
             if (image != null) {
                 addView(ImageView(this@MainActivity).apply {
@@ -495,7 +494,7 @@ class MainActivity : Activity() {
                 addView(TextView(this@MainActivity).apply {
                     text = app.label
                     textSize = 15f
-                    setTextColor(text)
+                    setTextColor(uiText)
                     typeface = Typeface.DEFAULT_BOLD
                 })
                 addView(TextView(this@MainActivity).apply {
@@ -528,7 +527,7 @@ class MainActivity : Activity() {
             body.addView(textPair(clone.label, clone.packageName + " • profile " + clone.userId, 16f))
             val enabled = SwitchMaterial(this).apply {
                 text = "Scheduled recovery"
-                setTextColor(text)
+                setTextColor(uiText)
                 isChecked = clone.recoveryEnabled
                 setOnCheckedChangeListener { _, checked ->
                     updateClone(clone.userId) {
@@ -544,7 +543,7 @@ class MainActivity : Activity() {
             body.addView(interval)
             val network = SwitchMaterial(this).apply {
                 text = "Restart after network change"
-                setTextColor(text)
+                setTextColor(uiText)
                 isChecked = clone.restartOnNetworkChange
                 setOnCheckedChangeListener { _, checked ->
                     updateClone(clone.userId) { it.copy(restartOnNetworkChange = checked) }
@@ -554,7 +553,7 @@ class MainActivity : Activity() {
             body.addView(network)
             val ip = SwitchMaterial(this).apply {
                 text = "Restart after public IP change"
-                setTextColor(text)
+                setTextColor(uiText)
                 isChecked = clone.restartOnPublicIpChange
                 setOnCheckedChangeListener { _, checked ->
                     updateClone(clone.userId) { it.copy(restartOnPublicIpChange = checked) }
@@ -626,7 +625,7 @@ class MainActivity : Activity() {
         body.addView(TextView(this).apply {
             text = "FLY8 Clone"
             textSize = 20f
-            setTextColor(text)
+            setTextColor(uiText)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         })
@@ -639,7 +638,7 @@ class MainActivity : Activity() {
         body.addView(TextView(this).apply {
             text = "Independent session management without an activation gate."
             textSize = 12f
-            setTextColor(text)
+            setTextColor(uiText)
             gravity = Gravity.CENTER
             setPadding(dp(10), dp(6), dp(10), dp(8))
         })
@@ -722,7 +721,7 @@ class MainActivity : Activity() {
     private fun textPair(title: String, body: String, size: Float) = TextView(this).apply {
         text = title + "\n" + body
         textSize = size
-        setTextColor(text)
+        setTextColor(uiText)
         setPadding(dp(14), dp(13), dp(14), dp(4))
         if (size >= 16f) typeface = Typeface.DEFAULT_BOLD
     }
@@ -754,7 +753,7 @@ class MainActivity : Activity() {
     private fun metric(title: String, value: String, sub: String) = TextView(this).apply {
         text = title + "\n" + value + "\n" + sub
         textSize = 11f
-        setTextColor(text)
+        setTextColor(uiText)
         setPadding(dp(14), dp(12), dp(10), dp(10))
     }
 
@@ -763,7 +762,7 @@ class MainActivity : Activity() {
         box.addView(TextView(this).apply {
             text = label
             textSize = 12f
-            setTextColor(text)
+            setTextColor(uiText)
             setPadding(dp(14), dp(2), dp(14), dp(5))
         })
         val track = MaterialCardView(this).apply {
