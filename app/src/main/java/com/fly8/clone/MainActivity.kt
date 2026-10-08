@@ -27,6 +27,7 @@ import androidx.core.content.ContextCompat
 import com.fly8.clone.backend.CloneBackend
 import com.fly8.clone.backend.ShizukuCloneBackend
 import com.fly8.clone.model.CloneEntry
+import com.fly8.clone.model.ProfileKind
 import com.fly8.clone.model.SessionState
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
@@ -354,7 +355,8 @@ class MainActivity : Activity() {
     private fun renderSessions() {
         configureHeader("Sessions", "Grid view • " + clones.size + " configured")
         headerActions.addView(actionButton("▦") { toast("Grid view is the default compact layout.") })
-        headerActions.addView(actionButton("▶") { launchAll() })
+        headerActions.addView(actionButton("▶") { launchAllSequential() })
+        headerActions.addView(actionButton("↻") { restartRunningSessions() })
         headerActions.addView(actionButton("⚙") {
             page = Page.RECOVERY
             renderCurrentPage()
@@ -404,7 +406,7 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         })
         info.addView(TextView(this).apply {
-            text = "#" + clone.userId + " • " + clone.packageName
+            text = "#" + clone.userId + " • " + clone.packageName + " • " + if (clone.profileKind == ProfileKind.CLONE_PROFILE) "clone profile" else "secondary user"
             textSize = 9f
             setTextColor(muted)
             maxLines = 2
@@ -524,7 +526,7 @@ class MainActivity : Activity() {
         clones.forEach { clone ->
             val card = card()
             val body = vertical()
-            body.addView(textPair(clone.label, clone.packageName + " • profile " + clone.userId, 16f))
+            body.addView(textPair(clone.label, clone.packageName + " • profile " + clone.userId + " • " + if (clone.profileKind == ProfileKind.CLONE_PROFILE) "clone profile" else "secondary user", 16f))
             val enabled = SwitchMaterial(this).apply {
                 text = "Scheduled recovery"
                 setTextColor(uiText)
@@ -551,6 +553,20 @@ class MainActivity : Activity() {
                 }
             }
             body.addView(network)
+            val target = actionButton(if (clone.rejoinTarget.isBlank()) "Rejoin target: not set" else "Rejoin target: " + clone.rejoinTarget) {
+                editRejoinTarget(clone)
+            }
+            body.addView(target)
+            val stalled = SwitchMaterial(this).apply {
+                text = "Recover stalled sessions"
+                setTextColor(uiText)
+                isChecked = clone.stalledDetectionEnabled
+                setOnCheckedChangeListener { _, checked ->
+                    updateClone(clone.userId) { it.copy(stalledDetectionEnabled = checked) }
+                    if (checked) toast("Stalled-screen detection is stored as an opt-in preference; no continuous screenshot polling is enabled.")
+                }
+            }
+            body.addView(stalled)
             val ip = SwitchMaterial(this).apply {
                 text = "Restart after public IP change"
                 setTextColor(uiText)
@@ -829,11 +845,11 @@ class MainActivity : Activity() {
 
     private fun createClone(packageName: String, label: String) {
         if (!shizukuReady()) {
-            toast("Start Shizuku and grant FLY8 permission first.")
+            showTextDialog("Connect controls", "Start Shizuku and grant FLY8 permission before creating a session.")
             return
         }
         if (clones.any { it.packageName == packageName }) {
-            toast("A FLY8 session for this package is already configured.")
+            showTextDialog("Already configured", "A FLY8 session for " + packageName + " already exists. Use Sessions to manage it.")
             return
         }
         toast("Creating session…")
@@ -843,13 +859,18 @@ class MainActivity : Activity() {
                 result.onSuccess {
                     clones.add(it)
                     store.save(clones)
-                    activityLog.add("Created session: " + label)
+                    activityLog.add("Created session: " + label + " • " + it.profileKind.name.lowercase())
                     RecoveryScheduler.schedule(this, it)
                     page = Page.SESSIONS
                     renderCurrentPage()
-                    toast("Session created.")
-                }.onFailure {
-                    toast(it.message ?: "Session creation failed.")
+                    toast(if (it.profileKind == ProfileKind.CLONE_PROFILE) "Session created with native clone profile." else "Session created with secondary-user fallback.")
+                }.onFailure { error ->
+                    activityLog.add("Create failed: " + label)
+                    AlertDialog.Builder(this)
+                        .setTitle("Could not create session")
+                        .setMessage(error.message ?: "Android rejected the profile operation.")
+                        .setPositiveButton("Close", null)
+                        .show()
                 }
             }
         }
@@ -866,6 +887,7 @@ class MainActivity : Activity() {
                     activityLog.add((if (fromRecovery) "Recovery restart: " else "Started: ") + clone.label)
                     renderCurrentPage()
                     if (!fromRecovery) toast("Session started.")
+                    if (clone.rejoinTarget.isNotBlank() && fromRecovery) activityLog.add("Rejoin target saved for " + clone.label + ": " + clone.rejoinTarget)
                 }.onFailure {
                     activityLog.add("Launch failed: " + clone.label)
                     toast(it.message ?: "Launch failed.")
@@ -965,6 +987,29 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun editRejoinTarget(clone: CloneEntry) {
+        val input = EditText(this).apply {
+            setText(clone.rejoinTarget)
+            hint = "Roblox game link or place ID"
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Rejoin target")
+            .setMessage("This is stored locally as a recovery target. FLY8 does not log into your account or guarantee a successful join.")
+            .setView(input)
+            .setNegativeButton("Clear") { _, _ ->
+                updateClone(clone.userId) { it.copy(rejoinTarget = "") }
+                renderCurrentPage()
+            }
+            .setNeutralButton("Cancel", null)
+            .setPositiveButton("Save") { _, _ ->
+                updateClone(clone.userId) { it.copy(rejoinTarget = input.text.toString().trim()) }
+                activityLog.add("Updated recovery target: " + clone.label)
+                renderCurrentPage()
+            }
+            .show()
+    }
+
     private fun chooseRecoveryInterval(clone: CloneEntry) {
         val values = arrayOf("5 minutes", "15 minutes", "30 minutes", "60 minutes", "120 minutes")
         val minutes = intArrayOf(5, 15, 30, 60, 120)
@@ -1041,26 +1086,63 @@ class MainActivity : Activity() {
             .show()
     }
 
-    private fun launchAll() {
+    private fun launchAllSequential() {
         if (clones.isEmpty()) {
             toast("No configured sessions.")
             return
         }
-        clones.forEachIndexed { index, clone ->
-            executor.execute {
-                backend.launch(clone)
-                if (index == clones.lastIndex) {
+        val snapshot = clones.toList()
+        toast("Starting " + snapshot.size + " sessions one at a time…")
+        executor.execute {
+            snapshot.forEachIndexed { index, clone ->
+                val result = backend.launch(clone)
+                if (result.isSuccess) {
                     runOnUiThread {
-                        clones.forEach { cloneItem ->
-                            updateClone(cloneItem.userId) { it.copy(lastKnownState = SessionState.RUNNING) }
+                        updateClone(clone.userId) {
+                            it.copy(lastKnownState = SessionState.RUNNING, lastActionAt = System.currentTimeMillis())
                         }
-                        activityLog.add("Batch launch requested for " + clones.size + " sessions")
-                        renderCurrentPage()
+                        activityLog.add("Batch started: " + clone.label)
+                    }
+                } else {
+                    runOnUiThread { activityLog.add("Batch launch failed: " + clone.label) }
+                }
+                if (index < snapshot.lastIndex) Thread.sleep(10_000)
+            }
+            runOnUiThread { renderCurrentPage() }
+        }
+    }
+
+    private fun restartRunningSessions() {
+        val running = clones.filter { it.lastKnownState == SessionState.RUNNING }
+        if (running.isEmpty()) {
+            toast("No sessions are marked running.")
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Restart running sessions?")
+            .setMessage("FLY8 will restart " + running.size + " running session(s) one at a time, with a 10-second gap to reduce load. Saved recovery targets are not automatically guaranteed to rejoin.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Restart") { _, _ ->
+                executor.execute {
+                    running.forEachIndexed { index, clone ->
+                        val result = backend.stop(clone)
+                        Thread.sleep(1000)
+                        val started = if (result.isSuccess) backend.launch(clone) else Result.failure<Unit>(IllegalStateException("Stop failed"))
+                        runOnUiThread {
+                            if (started.isSuccess) {
+                                updateClone(clone.userId) { it.copy(lastKnownState = SessionState.RUNNING, lastActionAt = System.currentTimeMillis()) }
+                                activityLog.add("Restarted: " + clone.label)
+                            } else {
+                                updateClone(clone.userId) { it.copy(lastKnownState = SessionState.STOPPED, lastActionAt = System.currentTimeMillis()) }
+                                activityLog.add("Restart failed: " + clone.label)
+                            }
+                            renderCurrentPage()
+                        }
+                        if (index < running.lastIndex) Thread.sleep(10_000)
                     }
                 }
             }
-        }
-        toast("Starting " + clones.size + " sessions…")
+            .show()
     }
 
     private fun updateClone(userId: Int, transform: (CloneEntry) -> CloneEntry) {
