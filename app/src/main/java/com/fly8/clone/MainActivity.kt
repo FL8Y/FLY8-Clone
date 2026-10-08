@@ -1268,11 +1268,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun connectionReady(): Boolean {
-        return runCatching {
-            connectionManager.bridge().use { it.check().ok }
-        }.getOrDefault(false)
-    }
+    private fun connectionReady(): Boolean = connectionManager.isReady()
 
     private fun refreshStatus() {
         if (!::statusView.isInitialized) return
