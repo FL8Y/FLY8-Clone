@@ -26,9 +26,7 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.fly8.clone.backend.CloneBackend
 import com.fly8.clone.backend.NativeProfileBackend
-import com.fly8.clone.connection.CommandBridge
 import com.fly8.clone.connection.ConnectionManager
-import com.fly8.clone.connection.ConnectionMethod
 import com.fly8.clone.connection.ConnectionUi
 import com.fly8.clone.model.CloneEntry
 import com.fly8.clone.model.ProfileKind
@@ -259,7 +257,6 @@ class MainActivity : Activity() {
         val body = vertical()
         body.addView(textPair("Control state", when {
             !ready -> "No control connection is ready. Choose Wireless debugging, Shizuku, or Root."
-            !ready -> "Connect Shizuku to start and control isolated sessions."
             else -> "Controls connected through " + connectionManager.statusText() + ". FLY8 can manage supported clone profiles."
         }, 16f))
         body.addView(badge(
@@ -658,8 +655,8 @@ class MainActivity : Activity() {
         }
 
         addSection("Compatibility", "What this build can and cannot guarantee.")
-        addInfoCard("Native clone backend", "Android 15+ and OEM support are required. Native clone profiles are not unlimited virtualization and some devices expose only one additional clone profile.")
-        addInfoCard("Shizuku", "FLY8 uses Shizuku only as an optional privileged bridge. It does not expose an arbitrary shell console.")
+        addInfoCard("Profile backend", "FLY8 can manage native clone profiles and, where supported, secondary users. The actual limit is controlled by Android/OEM policy.")
+        addInfoCard("Control methods", "Wireless debugging, Shizuku, and Root are independent control methods. Pick the one your device supports. FLY8 does not require an activation account.")
         addInfoCard("Package", packageName + " • target SDK " + Build.VERSION.SDK_INT)
     }
 
@@ -733,7 +730,7 @@ class MainActivity : Activity() {
             showTextDialog("Privacy", "FLY8 stores session metadata locally on the device. It does not require an account or remote activation service. The app picker reads installed application metadata so you can choose a package to clone.")
         }
         addRowCard("Project notes", "Backend limits and compatibility.") {
-            showTextDialog("Project notes", "FLY8 is an independent application. The current backend uses Android's native clone-profile mechanism through Shizuku. OEM behavior differs, and this build does not claim unlimited simultaneous instances.")
+            showTextDialog("Project notes", "FLY8 is an independent application. Its session engine uses Android profile primitives, while control is provided by Wireless debugging, Shizuku, or Root. OEM behavior differs, and this build does not claim unlimited simultaneous instances.")
         }
         addRowCard("Credits", "FLY8 design and implementation.") {
             showTextDialog("Credits", "FLY8 Clone is independently implemented from scratch. The eye/window artwork supplied for this project is used as FLY8 branding inspiration and launcher artwork.")
@@ -1236,13 +1233,19 @@ class MainActivity : Activity() {
     }
 
     private fun syncProfiles() {
-        if (!connectionReady()) return
         executor.execute {
-            val result = Shell.run("pm list users")
-            if (result.code != 0) return@execute
-            val existing = Regex("UserInfo\\{([0-9]+):").findAll(result.out).mapNotNull {
-                it.groupValues.getOrNull(1)?.toIntOrNull()
-            }.toSet()
+            val bridge = connectionManager.bridge()
+            val ready = runCatching { bridge.use { it.check().ok } }.getOrDefault(false)
+            if (!ready) return@execute
+
+            val result = bridge.use { it.run("pm list users") }
+            if (!result.ok) return@execute
+
+            val existing = Regex("UserInfo\\{([0-9]+):")
+                .findAll(result.output)
+                .mapNotNull { it.groupValues.getOrNull(1)?.toIntOrNull() }
+                .toSet()
+
             runOnUiThread {
                 var changed = false
                 clones.indices.forEach { index ->
@@ -1250,7 +1253,9 @@ class MainActivity : Activity() {
                     val next = clone.copy(
                         lastKnownState = if (existing.contains(clone.userId)) {
                             if (clone.lastKnownState == SessionState.UNAVAILABLE) SessionState.UNKNOWN else clone.lastKnownState
-                        } else SessionState.UNAVAILABLE
+                        } else {
+                            SessionState.UNAVAILABLE
+                        }
                     )
                     if (next != clone) {
                         clones[index] = next
