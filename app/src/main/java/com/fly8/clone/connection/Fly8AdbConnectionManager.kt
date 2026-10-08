@@ -43,13 +43,35 @@ class Fly8AdbConnectionManager private constructor(
     fun pairDevice(host: String, port: Int, code: String): Result<Unit> = runCatching {
         require(host.isNotBlank()) { "Wireless debugging address is missing." }
         require(port in 1..65535) { "Wireless debugging pairing port is invalid." }
-        require(code.matches(Regex("\\d{6}"))) { "Enter the six-digit Wireless debugging pairing code." }
+        require(code.matches(Regex("\d{6}"))) {
+            "Enter the six-digit Wireless debugging pairing code."
+        }
         pair(host, port, code)
     }
 
+    /**
+     * Reconnect in the same order as the reference UX:
+     * 1. Reuse the last known connection endpoint when available.
+     * 2. Fall back to Android's mDNS _adb-tls-connect service.
+     *
+     * Pairing and connecting are deliberately separate operations.
+     */
     fun connectAutomatically(): Result<Unit> = runCatching {
-        if (!isConnected) connectTls(context, 8_000)
-        check(isConnected) { "Wireless debugging endpoint was not found." }
+        if (isConnected) return@runCatching
+
+        val prefs = context.getSharedPreferences("fly8_connection", Context.MODE_PRIVATE)
+        val savedHost = prefs.getString("host", "").orEmpty()
+        val savedPort = prefs.getInt("connection_port", 0)
+
+        if (savedHost.isNotBlank() && savedPort in 1..65535) {
+            runCatching { connect(savedHost, savedPort) }
+            if (isConnected) return@runCatching
+        }
+
+        connectTls(context, 8_000)
+        check(isConnected) {
+            "Wireless debugging endpoint was not found. Keep Wireless debugging enabled and on the same network."
+        }
     }
 
     fun connectManually(host: String, port: Int): Result<Unit> = runCatching {
@@ -64,8 +86,11 @@ class Fly8AdbConnectionManager private constructor(
             if (!isConnected) {
                 val auto = connectAutomatically()
                 if (auto.isFailure) {
-                    return BridgeResult(-1, error = auto.exceptionOrNull()?.message
-                        ?: "Wireless debugging is not connected.")
+                    return BridgeResult(
+                        -1,
+                        error = auto.exceptionOrNull()?.message
+                            ?: "Wireless debugging is not connected."
+                    )
                 }
             }
 
@@ -157,11 +182,12 @@ private object KeyMaterial {
 private class PublicKeyCertificate(
     private val publicKey: PublicKey
 ) : Certificate("X.509") {
-    override fun getEncoded(): ByteArray =
-        publicKey.encoded.copyOf()
+    override fun getEncoded(): ByteArray = publicKey.encoded.copyOf()
 
     override fun verify(key: PublicKey) {
-        require(key.algorithm == publicKey.algorithm) { "Certificate verification is not available for the FLY8 ADB key wrapper." }
+        require(key.algorithm == publicKey.algorithm) {
+            "Certificate verification is not available for the FLY8 ADB key wrapper."
+        }
     }
 
     override fun verify(key: PublicKey, sigProvider: String) = verify(key)
