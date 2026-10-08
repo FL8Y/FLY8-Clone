@@ -4,8 +4,6 @@
 
 FLY8 Clone uses the Shizuku API and provider libraries.
 
-Project: https://github.com/RikkaApps/Shizuku-API
-
 The client libraries are licensed under the MIT License. Their applicable copyright and license notice is retained here.
 
 ## AndroidX and Material Components
