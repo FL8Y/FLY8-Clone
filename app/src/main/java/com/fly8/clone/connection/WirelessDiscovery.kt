@@ -58,7 +58,7 @@ class WirelessDiscovery(context: Context) {
         manager.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, listener)
 
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            runCatching { manager.stopServiceDiscovery(listener) }
+            listener?.let { runCatching { manager.stopServiceDiscovery(it) } }
         }, timeoutMs)
     }
 }
