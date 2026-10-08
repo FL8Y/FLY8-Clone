@@ -39,6 +39,6 @@ dependencies {
     implementation("com.google.android.material:material:1.13.0")
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
-    implementation("com.flyfishxu:kadb:2.1.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
+    implementation("org.bouncycastle:bcprov-jdk15to18:1.81")
 }
