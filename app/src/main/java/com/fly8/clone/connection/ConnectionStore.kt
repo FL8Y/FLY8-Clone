@@ -14,13 +14,15 @@ class ConnectionStore(context: Context) {
 
     fun contextPrefs() = prefs
 
+    // Wireless debugging is the normal control path. Shizuku is an explicit optional
+    // alternative and must never become the implicit/default connectivity mechanism.
     fun method(): ConnectionMethod =
         runCatching {
             ConnectionMethod.valueOf(
-                prefs.getString("method", ConnectionMethod.SHIZUKU.name)
-                    ?: ConnectionMethod.SHIZUKU.name
+                prefs.getString("method", ConnectionMethod.WIRELESS_DEBUGGING.name)
+                    ?: ConnectionMethod.WIRELESS_DEBUGGING.name
             )
-        }.getOrDefault(ConnectionMethod.SHIZUKU)
+        }.getOrDefault(ConnectionMethod.WIRELESS_DEBUGGING)
 
     fun setMethod(method: ConnectionMethod) =
         prefs.edit().putString("method", method.name).apply()
